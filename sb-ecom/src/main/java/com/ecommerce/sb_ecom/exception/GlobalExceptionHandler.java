@@ -1,6 +1,6 @@
 package com.ecommerce.sb_ecom.exception;
 
-import org.springframework.http.HttpStatus;
+import com.ecommerce.sb_ecom.payload.APIResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -10,7 +10,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.springframework.http.HttpStatus.*;
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
+import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler extends RuntimeException {
@@ -29,15 +30,17 @@ public class GlobalExceptionHandler extends RuntimeException {
     }
 
     @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<String> myResourceNotFoundException(ResourceNotFoundException ex) {
+    public ResponseEntity<APIResponse> myResourceNotFoundException(ResourceNotFoundException ex) {
         String message = ex.getMessage();
-        return new ResponseEntity<>(message, NOT_FOUND);
+        APIResponse apiResponse = new APIResponse(message, false);
+        return new ResponseEntity<>(apiResponse, NOT_FOUND);
     }
 
     @ExceptionHandler(APIException.class)
-    public ResponseEntity<String> myAPIException(APIException ex) {
+    public ResponseEntity<APIResponse> myAPIException(APIException ex) {
         String message = ex.getMessage();
-        return new ResponseEntity<>(message, BAD_REQUEST);
+        APIResponse apiResponse = new APIResponse(message, false);
+        return new ResponseEntity<>(apiResponse, BAD_REQUEST);
     }
 
 }
