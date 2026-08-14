@@ -23,4 +23,6 @@ public class SocialUser {
     @ManyToMany
     private Set<SocialGroups> grrous = new HashSet<>();
 
+    //adding explicit relations to project
+
 }
