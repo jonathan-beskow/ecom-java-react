@@ -20,9 +20,10 @@ import java.util.Date;
 @Component
 public class JwtUtils {
 
-    @Value("${spring.app.jwtSecret}")
-    private int jwtExpirationMs;
     @Value("${spring.app.expirationMs}")
+    private int jwtExpirationMs;
+
+    @Value("${spring.app.jwtSecret}")
     private String jwtSecret;
 
     public String getJwtFromHeader(HttpServletRequest request) {
