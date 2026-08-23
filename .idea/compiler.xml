@@ -7,7 +7,6 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
-        <module name="demo" />
       </profile>
       <profile name="Annotation profile for sb-ecom" enabled="true">
         <sourceOutputDir name="target/generated-sources/annotations" />
@@ -15,13 +14,15 @@
         <outputRelativeToContentRoot value="true" />
         <processorPath useClasspath="false">
           <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.46/lombok-1.18.46.jar" />
+          <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.46/lombok-1.18.46.jar" />
         </processorPath>
-        <module name="media (1)" />
         <module name="sb-ecom" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
+      <module name="demo" target="25" />
       <module name="media" target="25" />
+      <module name="media (1)" target="25" />
     </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">
