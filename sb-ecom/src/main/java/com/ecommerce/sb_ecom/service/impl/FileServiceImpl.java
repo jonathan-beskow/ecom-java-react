@@ -1,6 +1,6 @@
-package com.ecommerce.sb_ecom.service;
+package com.ecommerce.sb_ecom.service.impl;
 
-import org.springframework.beans.factory.annotation.Value;
+import com.ecommerce.sb_ecom.service.FileService;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 

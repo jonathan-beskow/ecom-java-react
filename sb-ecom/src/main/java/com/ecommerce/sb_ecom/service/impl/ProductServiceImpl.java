@@ -1,4 +1,4 @@
-package com.ecommerce.sb_ecom.service;
+package com.ecommerce.sb_ecom.service.impl;
 
 import com.ecommerce.sb_ecom.exception.APIException;
 import com.ecommerce.sb_ecom.exception.ResourceNotFoundException;
@@ -8,6 +8,8 @@ import com.ecommerce.sb_ecom.payload.ProductDTO;
 import com.ecommerce.sb_ecom.payload.ProductResponse;
 import com.ecommerce.sb_ecom.repositories.CategoryRepository;
 import com.ecommerce.sb_ecom.repositories.ProductRepository;
+import com.ecommerce.sb_ecom.service.FileService;
+import com.ecommerce.sb_ecom.service.ProductService;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Value;

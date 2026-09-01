@@ -1,4 +1,4 @@
-package com.ecommerce.sb_ecom.service;
+package com.ecommerce.sb_ecom.service.impl;
 
 import com.ecommerce.sb_ecom.exception.APIException;
 import com.ecommerce.sb_ecom.exception.ResourceNotFoundException;
@@ -6,6 +6,7 @@ import com.ecommerce.sb_ecom.model.Category;
 import com.ecommerce.sb_ecom.payload.CategoryDTO;
 import com.ecommerce.sb_ecom.payload.CategoryResponse;
 import com.ecommerce.sb_ecom.repositories.CategoryRepository;
+import com.ecommerce.sb_ecom.service.CategoryService;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Page;
