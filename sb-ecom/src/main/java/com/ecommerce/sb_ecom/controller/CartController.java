@@ -1,6 +1,9 @@
 package com.ecommerce.sb_ecom.controller;
 
+import com.ecommerce.sb_ecom.AuthUtil;
+import com.ecommerce.sb_ecom.model.Cart;
 import com.ecommerce.sb_ecom.payload.CartDTO;
+import com.ecommerce.sb_ecom.repositories.CartRepository;
 import com.ecommerce.sb_ecom.service.CartService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -15,6 +18,8 @@ import java.util.List;
 public class CartController {
 
     private final CartService cartService;
+    private final AuthUtil authUtil;
+    private final CartRepository cartRepository;
 
     @PostMapping("/carts/products/{productId}/quantity/{quantity}")
     public ResponseEntity<CartDTO> addProductToCart(
@@ -29,6 +34,15 @@ public class CartController {
     public ResponseEntity<List<CartDTO>> getCarts() {
         List<CartDTO> cartDTOs = cartService.getAllCarts();
         return new ResponseEntity<List<CartDTO>>(cartDTOs, HttpStatus.FOUND);
+    }
+
+    @GetMapping("/carts/users/cart")
+    public ResponseEntity<CartDTO> getCartById() {
+        String emailId = authUtil.loggedInEmail();
+        Cart cart = cartRepository.findCartByEmail(emailId);
+        Long cartId = cart.getCartId();
+        CartDTO cartDTO = cartService.getCart(emailId, cartId);
+        return new ResponseEntity<CartDTO>(cartDTO, HttpStatus.OK);
     }
 
 }

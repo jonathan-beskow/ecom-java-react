@@ -10,8 +10,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Getter          // ✅ Apenas getters
-@Setter          // ✅ Apenas setters
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "products")
