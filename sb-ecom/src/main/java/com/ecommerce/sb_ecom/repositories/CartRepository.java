@@ -1,8 +1,12 @@
 package com.ecommerce.sb_ecom.repositories;
 
 import com.ecommerce.sb_ecom.model.Cart;
+import com.ecommerce.sb_ecom.model.Product;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+
+import java.util.List;
 
 public interface CartRepository extends JpaRepository<Cart, Long> {
 
@@ -12,6 +16,10 @@ public interface CartRepository extends JpaRepository<Cart, Long> {
     @Query("SELECT c FROM Cart c WHERE c.user.email = ?1 AND c.id = ?2")
     Cart findCartByEmailAndCartId(String emailId, Long cartId);
 
-    @Query("DELETE FROM CartItem ci WHERE ci.cart.id = ?1 AND c.id = ?2")
+    @Modifying
+    @Query("DELETE FROM CartItem ci WHERE ci.cart.id = ?1 AND ci.id = ?2")
     void deleteCartItemByProductIdAndCartId(Long cartId, Long productId);
+
+    @Query("SELECT c FROM Cart c JOIN FETCH c.cartItems ci JOIN FETCH ci.product p WHERE p.id = ?1")
+    List<Cart> findCartsByProductId(Long productId);
 }
