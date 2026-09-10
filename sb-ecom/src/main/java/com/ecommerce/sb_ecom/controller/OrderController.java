@@ -14,8 +14,8 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class OrderController {
 
-    private OrderService orderService;
-    private AuthUtil authUtil;
+    private final OrderService orderService;
+    private final AuthUtil authUtil;
 
 
     @PostMapping("/order/users/payments/{paymentMethod}")
