@@ -1,6 +1,7 @@
 package com.ecommerce.sb_ecom.service.impl;
 
 import com.ecommerce.sb_ecom.exception.APIException;
+import com.ecommerce.sb_ecom.exception.ResourceNotFoundException;
 import com.ecommerce.sb_ecom.model.Category;
 import com.ecommerce.sb_ecom.payload.CategoryDTO;
 import com.ecommerce.sb_ecom.payload.CategoryResponse;
@@ -16,6 +17,7 @@ import org.springframework.data.domain.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -208,6 +210,57 @@ class CategoryServiceImplTest {
         assertEquals("No category created till now", exception.getMessage());
 
     }
+
+    @Test
+    void shouldDeleteACategory() {
+
+        Long categoryId = 1L;
+
+        //preparando para recuperar uma categoria
+        when(categoryRepository.findById(categoryId))
+                .thenReturn(Optional.of(saved));
+        //prepara pra deletar
+        doNothing()
+                .when(categoryRepository).delete(saved);
+
+        //prepara para mapear
+        when(modelMapper.map(saved, CategoryDTO.class))
+                .thenReturn(output);
+
+        CategoryDTO result = categoryService.deleteCategory(categoryId);
+        assertNotNull(result);
+        assertEquals(output.getCategoryId(), result.getCategoryId());
+        assertEquals(output.getCategoryName(), result.getCategoryName());
+
+        verify(categoryRepository).findById(categoryId);
+        verify(categoryRepository).delete(saved);
+        verify(categoryRepository).delete(any(Category.class));
+    }
+
+    @Test
+    void shouldThrowExceptionWhenCategoryIdIsNotFoundWhenDeleteIsCalled() {
+
+        Long categoryId = 6L;
+
+        //preparando para recuperar uma categoria
+        when(categoryRepository.findById(categoryId))
+                .thenReturn(Optional.empty());
+
+        ResourceNotFoundException ex =
+                assertThrows(ResourceNotFoundException.class, () -> categoryService.deleteCategory(categoryId));
+
+        assertNotNull(ex);
+
+        verify(categoryRepository).findById(categoryId);
+        verify(categoryRepository, never()).delete(any(Category.class));
+        verify(modelMapper, never()).map(any(Category.class), eq(CategoryDTO.class));
+    }
+
+    @Test
+    void shouldUpdateACategorySuccessfully() {
+        
+    }
+
 
 
 }
