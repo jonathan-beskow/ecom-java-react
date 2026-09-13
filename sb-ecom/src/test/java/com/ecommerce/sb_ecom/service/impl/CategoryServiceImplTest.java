@@ -258,7 +258,33 @@ class CategoryServiceImplTest {
 
     @Test
     void shouldUpdateACategorySuccessfully() {
-        
+
+        Long categoryId = 1L;
+        //busca pelo id
+        when(categoryRepository.findById(categoryId)).thenReturn(Optional.of(category));
+
+        when(modelMapper.map(input, Category.class)).thenReturn(category);
+
+        when(categoryRepository.save(category)).thenReturn(saved);
+
+        when(modelMapper.map(saved, CategoryDTO.class)).thenReturn(output);
+
+        CategoryDTO result = categoryService.updateCategory(input, categoryId);
+
+        assertEquals(1L, result.getCategoryId());
+        assertEquals("Books", result.getCategoryName());
+        verify(categoryRepository).save(category);
+    }
+
+    @Test
+    void shouldThrowExceptionWhenIdIsNotFound() {
+
+        Long categoryId = 6L;
+        //busca pelo id
+        when(categoryRepository.findById(categoryId)).thenReturn(Optional.empty());
+        assertThrows(ResourceNotFoundException.class, () -> categoryService.updateCategory(input, categoryId));
+        verify(categoryRepository, never()).save(any(Category.class));
+
     }
 
 
