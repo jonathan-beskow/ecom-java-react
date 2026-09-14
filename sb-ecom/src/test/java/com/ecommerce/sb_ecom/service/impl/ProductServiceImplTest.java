@@ -7,6 +7,7 @@ import com.ecommerce.sb_ecom.model.Category;
 import com.ecommerce.sb_ecom.model.Product;
 import com.ecommerce.sb_ecom.model.User;
 import com.ecommerce.sb_ecom.payload.ProductDTO;
+import com.ecommerce.sb_ecom.payload.ProductResponse;
 import com.ecommerce.sb_ecom.repositories.CartRepository;
 import com.ecommerce.sb_ecom.repositories.CategoryRepository;
 import com.ecommerce.sb_ecom.repositories.ProductRepository;
@@ -19,13 +20,15 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.modelmapper.ModelMapper;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import org.springframework.data.domain.*;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class ProductServiceImplTest {
@@ -127,7 +130,6 @@ class ProductServiceImplTest {
         newProductDto.setSpecialPrice(newProduct.getSpecialPrice());
 
 
-
         Long categoryId = 3L;
 
         when(categoryRepository.findById(categoryId)).thenReturn(Optional.of(category));
@@ -175,6 +177,190 @@ class ProductServiceImplTest {
         APIException ex = assertThrows(APIException.class, () -> productService.addProduct(categoryId, productDTO));
         assertNotNull(ex);
         assertEquals("Product already exist!", ex.getMessage());
+    }
+
+    @Test
+    void shouldGetAllProductsPaginated() {
+        Integer pageNumber = 0;
+        Integer pageSize = 10;
+        String sortBy = "productId";
+        Sort sortByASC = Sort.by(sortBy).ascending();
+        Pageable pageDetails = PageRequest.of(pageNumber, pageSize, sortByASC);
+
+        Page<Product> productsPage = new PageImpl<>(
+                productList,
+                pageDetails,
+                productList.size()
+        );
+
+        when(productRepository.findAll(any(Pageable.class))).thenReturn(productsPage);
+        when(modelMapper.map(any(Product.class), eq(ProductDTO.class))).thenReturn(productDTO);
+
+        ProductResponse response =
+                productService.getAllProducts(pageNumber, pageSize, sortBy, "asc");
+
+        assertNotNull(response);
+        assertEquals(1, response.getContent().size());
+        assertEquals(0, response.getPageNumber());
+        assertEquals(10, response.getPageSize());
+        assertEquals(1, response.getTotalElements());
+        assertEquals(1, response.getTotalPages());
+        assertTrue(response.isLastPage());
+        verify(productRepository).findAll(any(Pageable.class));
+    }
+
+    @Test
+    void shouldThrowExceptionBecauseListIsEmpty() {
+
+        Integer pageNumber = 0;
+        Integer pageSize = 10;
+        String sortBy = "productId";
+        Sort sortByASC = Sort.by(sortBy).ascending();
+        Pageable pageDetails = PageRequest.of(pageNumber, pageSize, sortByASC);
+
+        List<Product> emptyList = new ArrayList<>();
+
+        Page<Product> productsPage = new PageImpl<>(
+                emptyList,
+                pageDetails,
+                emptyList.size()
+        );
+
+        when(productRepository.findAll(any(Pageable.class))).thenReturn(productsPage);
+
+        APIException ex = assertThrows(APIException.class, () -> productService.getAllProducts(pageNumber, pageSize, sortBy, "asc"));
+
+        assertNotNull(ex);
+        assertEquals("No products found!", ex.getMessage());
+
+        verify(productRepository).findAll(any(Pageable.class));
+        verifyNoInteractions(modelMapper);
+
+    }
+
+    @Test
+    void shouldReturnAResponseBecauseACorrectCategoryWasInformed() {
+
+        Long categoryId = 1L;
+
+        Integer pageNumber = 0;
+        Integer pageSize = 10;
+        String sortBy = "productId";
+        Sort sortByASC = Sort.by(sortBy).ascending();
+        Pageable pageDetails = PageRequest.of(pageNumber, pageSize, sortByASC);
+
+        Page<Product> productsPage = new PageImpl<>(
+                productList,
+                pageDetails,
+                productList.size()
+        );
+
+        when(categoryRepository.findById(categoryId)).thenReturn(Optional.of(category));
+
+        when(productRepository.findByCategoryOrderByPriceAsc(eq(category), any(Pageable.class)))
+                .thenReturn(productsPage);
+
+        when(modelMapper.map(any(Product.class), eq(ProductDTO.class))).thenReturn(productDTO);
+
+        ProductResponse response = productService.searchByCategory(categoryId, pageNumber, pageSize, sortBy, "asc");
+        assertNotNull(response);
+        assertEquals(1, response.getContent().size());
+        assertEquals(0, response.getPageNumber());
+        assertEquals(10, response.getPageSize());
+        assertEquals(1, response.getTotalElements());
+        assertEquals(1, response.getTotalPages());
+        assertTrue(response.isLastPage());
+    }
+
+    @Test
+    void shouldThrowExceptionBecauseCategoryWasNotFound() {
+        Long invalidId = 10L;
+        Integer pageNumber = 0;
+        Integer pageSize = 10;
+        String sortBy = "productId";
+        Sort sortByASC = Sort.by(sortBy).ascending();
+        Pageable pageDetails = PageRequest.of(pageNumber, pageSize, sortByASC);
+
+        when(categoryRepository.findById(invalidId)).thenReturn(Optional.empty());
+
+
+        ResourceNotFoundException ex =
+                assertThrows(ResourceNotFoundException.class,
+                        () -> productService.searchByCategory(invalidId, pageNumber, pageSize, sortBy, "asc"));
+
+        assertNotNull(ex);
+
+        verifyNoInteractions(modelMapper);
+        verifyNoInteractions(productRepository);
+        verify(categoryRepository).findById(invalidId);
+
+    }
+
+    @Test
+    void shouldThrowExceptionBecauseCategoryHasNoProducts() {
+        Long categoryId = 1L;
+        Integer pageNumber = 0;
+        Integer pageSize = 10;
+        String sortBy = "productId";
+        Sort sortByASC = Sort.by(sortBy).ascending();
+        Pageable pageDetails = PageRequest.of(pageNumber, pageSize, sortByASC);
+
+        List<Product> emptyProductList = new ArrayList<>();
+
+        Page<Product> productsPage = new PageImpl<>(
+                emptyProductList,
+                pageDetails,
+                emptyProductList.size()
+        );
+
+        when(categoryRepository.findById(categoryId)).thenReturn(Optional.of(category));
+
+        when(productRepository.findByCategoryOrderByPriceAsc(eq(category), any(Pageable.class)))
+                .thenReturn(productsPage);
+
+
+        APIException ex = assertThrows(APIException.class,
+                () -> productService.searchByCategory(categoryId, pageNumber, pageSize, sortBy, "asc"));
+
+        assertNotNull(ex);
+        assertEquals("Products not found with categoryId: " + categoryId, ex.getMessage());
+        // Verificações de fluxo
+        verify(categoryRepository).findById(categoryId);
+        verify(productRepository).findByCategoryOrderByPriceAsc(eq(category), any(Pageable.class));
+        verifyNoInteractions(modelMapper); // G
+    }
+
+    @Test
+    void shouldReturnAResponseBecauseFoundAProductWithKeyWord() {
+
+        Integer pageNumber = 0;
+        Integer pageSize = 10;
+        String sortBy = "productId";
+        Sort sortByASC = Sort.by(sortBy).ascending();
+        Pageable pageDetails = PageRequest.of(pageNumber, pageSize, sortByASC);
+
+        String keyWord = "Ball";
+
+        Page<Product> productsPage = new PageImpl<>(
+                productList,
+                pageDetails,
+                productList.size()
+        );
+
+        when(productRepository.findByProductNameLikeIgnoreCase("%"+keyWord+"%", pageDetails))
+                .thenReturn(productsPage);
+
+        when(modelMapper.map(any(Product.class), eq(ProductDTO.class))).thenReturn(productDTO);
+
+        ProductResponse response = productService.searchProductByKeyword(keyWord, pageNumber, pageSize, sortBy, "asc");
+        assertNotNull(response);
+        assertEquals(1, response.getContent().size());
+        assertEquals(0, response.getPageNumber());
+        assertEquals(10, response.getPageSize());
+        assertEquals(1, response.getTotalElements());
+        assertEquals(1, response.getTotalPages());
+        assertTrue(response.isLastPage());
+
     }
 
 
