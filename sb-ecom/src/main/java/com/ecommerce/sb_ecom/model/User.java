@@ -12,7 +12,8 @@ import java.util.List;
 import java.util.Set;
 
 @Entity
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @Table(name = "users",
         uniqueConstraints = {
@@ -20,6 +21,7 @@ import java.util.Set;
                 @UniqueConstraint(columnNames = "email")
         })
 public class User {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "user_id")
@@ -47,30 +49,29 @@ public class User {
         this.password = password;
     }
 
-    @Setter
-    @Getter
     @ManyToMany(cascade = {CascadeType.PERSIST, CascadeType.MERGE},
             fetch = FetchType.EAGER)
     @JoinTable(name = "user_role",
             joinColumns = @JoinColumn(name = "user_id"),
             inverseJoinColumns = @JoinColumn(name = "role_id"))
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private Set<Role> roles = new HashSet<>();
 
-    @Getter
-    @Setter
     @OneToMany(mappedBy = "user", cascade = {CascadeType.PERSIST, CascadeType.MERGE}, orphanRemoval = true)
-//    @JoinTable(name = "user_address",
-//            joinColumns = @JoinColumn(name = "user_id"),
-//            inverseJoinColumns = @JoinColumn(name = "address_id"))
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private List<Address> addresses = new ArrayList<>();
 
-    @ToString.Exclude
     @OneToOne(mappedBy = "user", cascade = {CascadeType.PERSIST, CascadeType.MERGE}, orphanRemoval = true)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private Cart cart;
 
-    @ToString.Exclude
     @OneToMany(mappedBy = "user",
             cascade = {CascadeType.PERSIST, CascadeType.MERGE},
             orphanRemoval = true)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private Set<Product> products;
 }

@@ -3,15 +3,15 @@ package com.ecommerce.sb_ecom.model;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 @Entity
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
+@AllArgsConstructor
 @Table(name = "addresses")
 public class Address {
-
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -33,7 +33,6 @@ public class Address {
     @Size(min = 2, message = "State name must be at least 2 characters")
     private String state;
 
-
     @NotBlank
     @Size(min = 2, message = "Country name must at least 2 characters")
     private String country;
@@ -44,6 +43,8 @@ public class Address {
 
     @ManyToOne
     @JoinColumn(name = "user_id")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private User user;
 
     public Address(String street, String buildingName, String city, String state, String country, String pincode) {
