@@ -1,10 +1,9 @@
 package com.ecommerce.sb_ecom.service.impl;
 
+import com.ecommerce.sb_ecom.exception.ResourceNotFoundException;
 import com.ecommerce.sb_ecom.model.Address;
-import com.ecommerce.sb_ecom.model.Product;
 import com.ecommerce.sb_ecom.model.User;
 import com.ecommerce.sb_ecom.payload.AddressDTO;
-import com.ecommerce.sb_ecom.payload.ProductDTO;
 import com.ecommerce.sb_ecom.repositories.AddressRepository;
 import com.ecommerce.sb_ecom.repositories.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -68,9 +67,8 @@ class AddressServiceImplTest {
         addressDTO.setCountry("Brazil");
         addressDTO.setPincode("12345");
 
-        user.setAddresses(List.of(address));
+        user.setAddresses(new ArrayList<>(List.of(address)));
     }
-
 
 
     @Test
@@ -79,6 +77,7 @@ class AddressServiceImplTest {
         when(modelMapper.map(any(AddressDTO.class), eq(Address.class))).thenReturn(address);
 
         when(modelMapper.map(any(Address.class), eq(AddressDTO.class))).thenReturn(addressDTO);
+
 
         when(addressRepository.save(address)).thenReturn(address);
 
@@ -176,8 +175,91 @@ class AddressServiceImplTest {
         verify(modelMapper, times(1)).map(addressUpdated, AddressDTO.class);
     }
 
+    @Test
+    void shouldGetAnAddressById() {
+        Long addressId = 1L;
+        when(addressRepository.findById(addressId)).thenReturn(Optional.of(address));
+        when(modelMapper.map(any(Address.class), eq(AddressDTO.class))).thenReturn(addressDTO);
+
+        AddressDTO response = addressService.getAddressById(addressId);
+
+        assertEquals("Edificio do centro", response.getBuildingName());
+        verify(addressRepository, times(1)).findById(addressId);
+        verify(modelMapper, times(1)).map(address, AddressDTO.class);
+    }
+
+    @Test
+    void shouldThrowExceptionBecauseAddressIdNotExist() {
+        Long addressId = 10L;
+        when(addressRepository.findById(addressId)).thenReturn(Optional.empty());
+
+        ResourceNotFoundException ex = assertThrows(ResourceNotFoundException.class,
+                () -> addressService.getAddressById(addressId));
+
+        assertEquals("Address not found with addressId: 10", ex.getMessage());
+
+        verify(addressRepository, times(1)).findById(addressId);
+    }
+
+    @Test
+    void shouldThrowExceptionBecauseAddressIdNotExistWhenTryingToDelete() {
+        Long addressId = 10L;
+        when(addressRepository.findById(addressId)).thenReturn(Optional.empty());
+
+        ResourceNotFoundException ex = assertThrows(ResourceNotFoundException.class,
+                () -> addressService.deleteAddress(addressId));
+
+        assertEquals("Address not found with addressId: 10", ex.getMessage());
+
+        verify(addressRepository, times(1)).findById(addressId);
+    }
 
 
+    @Test
+    void shouldThrowExceptionBecauseAddressIdNotExistWhenTryingToUpdate() {
+        Long addressId = 10L;
+
+        Address addressUpdated = new Address();
+        addressUpdated.setAddressId(addressId);
+        addressUpdated.setStreet("Rua antiga");
+        addressUpdated.setBuildingName("Edificio antigo");
+        addressUpdated.setUser(user);
+
+        user.setAddresses(new ArrayList<>(List.of(addressUpdated)));
+
+        AddressDTO addressUpdatedDTO = new AddressDTO();
+        addressUpdatedDTO.setAddressId(addressId);
+        addressUpdatedDTO.setStreet("Rua nova");
+        addressUpdatedDTO.setBuildingName("Edificio novo");
+
+        AddressDTO responseDTO = new AddressDTO();
+        responseDTO.setAddressId(addressId);
+        responseDTO.setStreet("Rua nova");
+        responseDTO.setBuildingName("Edificio novo");
+
+        when(addressRepository.findById(addressId)).thenReturn(Optional.empty());
+
+        ResourceNotFoundException ex = assertThrows(ResourceNotFoundException.class,
+                () -> addressService.updateAddress(addressId, addressUpdatedDTO));
+
+        assertEquals("Address not found with addressId: 10", ex.getMessage());
+
+        verify(addressRepository, times(1)).findById(addressId);
+    }
+
+    @Test
+    void shouldDeleteAnAddressById() {
+        Long addressId = 1L;
+        when(addressRepository.findById(addressId)).thenReturn(Optional.of(address));
+        User thisUser = user;
+
+        when(userRepository.save(user)).thenReturn(thisUser);
+        doNothing().when(addressRepository).delete(address);
+
+        String response = addressService.deleteAddress(addressId);
+        assertEquals("Address deleted successfully with addressId: 1", response);
+
+    }
 
 
 }

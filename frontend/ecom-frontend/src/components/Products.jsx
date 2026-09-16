@@ -37,7 +37,7 @@ const Products = () => {
   const dispatch = useDispatch();
   useEffect(() => {
     dispatch(fetchProducts());
-  }, [dispatchs]);
+  }, [dispatch]);
 
   return (
     <div className="lg:px-14 sm:px-8 px-4 py-14 2xl:2-[90%] 2xl:mx-auto">

@@ -35,6 +35,9 @@ public class ProductServiceImpl implements ProductService {
     @Value("${project.images}")
     private String path;
 
+    @Value("${image.base.url}")
+    private String imageBaseUrl;
+
     private final CategoryRepository categoryRepository;
     private final ProductRepository productRepository;
     private final ModelMapper modelMapper;
@@ -83,7 +86,13 @@ public class ProductServiceImpl implements ProductService {
         Page<Product> pageProducts = productRepository.findAll(pageDetails);
 
         List<Product> products = pageProducts.getContent();
-        List<ProductDTO> productDTOS = products.stream().map(product -> modelMapper.map(product, ProductDTO.class)).collect(Collectors.toList());
+        List<ProductDTO> productDTOS = products
+                .stream()
+                .map(product -> {
+                    ProductDTO productDTO = modelMapper.map(product, ProductDTO.class);
+                    productDTO.setImage(constructImageUrl(product.getImage()));
+                    return productDTO;
+                }).collect(Collectors.toList());
 
         if (products.isEmpty()) {
             throw new APIException("No products found!");
@@ -98,6 +107,10 @@ public class ProductServiceImpl implements ProductService {
         productResponse.setLastPage(pageProducts.isLast());
 
         return productResponse;
+    }
+
+    private String constructImageUrl(String imageName) {
+        return imageBaseUrl.endsWith("/") ? imageBaseUrl + imageName : imageBaseUrl + "/" + imageName;
     }
 
     @Override
@@ -203,7 +216,9 @@ public class ProductServiceImpl implements ProductService {
         Product productFromDb = productRepository.findById(productId).orElseThrow(() -> new ResourceNotFoundException("Product", "productId", productId));
 
         List<Cart> carts = cartRepository.findCartsByProductId(productId);
-        carts.forEach(cart -> {cartService.deleteProductFromCart(cart.getCartId(), productId);});
+        carts.forEach(cart -> {
+            cartService.deleteProductFromCart(cart.getCartId(), productId);
+        });
 
         productRepository.delete(productFromDb);
 
