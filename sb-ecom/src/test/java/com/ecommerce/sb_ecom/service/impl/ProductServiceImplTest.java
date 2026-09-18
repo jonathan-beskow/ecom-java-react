@@ -102,6 +102,8 @@ class ProductServiceImplTest {
         productList.add(product);
         cartItemList.add(cartItem);
 
+        ReflectionTestUtils.setField(productService, "imageBaseUrl", "htt://localhost:8080/images/");
+
     }
 
 

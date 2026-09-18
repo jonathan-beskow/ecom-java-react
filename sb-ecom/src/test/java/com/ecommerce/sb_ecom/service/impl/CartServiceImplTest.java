@@ -1,6 +1,8 @@
 package com.ecommerce.sb_ecom.service.impl;
 
 import com.ecommerce.sb_ecom.AuthUtil;
+import com.ecommerce.sb_ecom.exception.APIException;
+import com.ecommerce.sb_ecom.exception.ResourceNotFoundException;
 import com.ecommerce.sb_ecom.model.*;
 import com.ecommerce.sb_ecom.payload.CartDTO;
 import com.ecommerce.sb_ecom.payload.ProductDTO;
@@ -19,8 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
@@ -55,6 +56,7 @@ class CartServiceImplTest {
     List<CartItem> cartItemList = new ArrayList<>();
     ProductDTO productDTO;
     Cart cart;
+    CartDTO cartDTO;
 
     @BeforeEach
     void init() {
@@ -84,6 +86,8 @@ class CartServiceImplTest {
                 cartItemList
         );
 
+        cartItem = new CartItem(1L, cart, product, 10, 0.1, 10.00);
+
         productList.add(product);
 
         cart = new Cart();
@@ -91,6 +95,8 @@ class CartServiceImplTest {
         cart.setTotalPrice(0.0);
         cart.setUser(user);
         cart.setCartItems(new ArrayList<>());
+
+        cartDTO = new CartDTO();
 
         productDTO = new ProductDTO();
         productDTO.setProductId(1L);
@@ -108,7 +114,7 @@ class CartServiceImplTest {
         Long productId = 1L;
         Integer quantity = 2;
 
-        CartDTO cartDTO = new CartDTO();
+        cartDTO = new CartDTO();
         cartDTO.setCartId(1L);
         cartDTO.setTotalPrice(0.0);
 
@@ -155,6 +161,146 @@ class CartServiceImplTest {
 
         verify(cartItemRepository).save(any(CartItem.class));
         verify(cartRepository).save(cart);
+    }
+
+    @Test
+    void shouldFailBecauseProductDoesNotExist() {
+        Long invalidId = 10L;
+        Integer quantity = 10;
+        when(productRepository.findById(invalidId))
+                .thenReturn(Optional.empty());
+
+        ResourceNotFoundException ex = assertThrows(ResourceNotFoundException.class,
+                () -> cartService.addProductToCart(invalidId, quantity));
+
+        assertEquals("Product not found with productId: 10", ex.getMessage());
+
+    }
+
+    @Test
+    void shouldThrowExceptionBecauseCarIsNotNull() {
+        Long productId = 1L;
+        Integer quantity = 2;
+
+        CartDTO cartDTO = new CartDTO();
+        cartDTO.setCartId(1L);
+        cartDTO.setTotalPrice(0.0);
+
+
+        when(authUtil.loggedInEmail()).thenReturn("user@email.com");
+
+        when(cartRepository.findCartByEmail("user@email.com"))
+                .thenReturn(cart);
+
+        when(productRepository.findById(productId))
+                .thenReturn(Optional.of(product));
+
+        when(cartItemRepository.findCartItemByProductIdAndCartId(cart.getCartId(), productId))
+                .thenReturn(cartItem);
+
+        APIException ex = assertThrows(APIException.class,
+                () -> cartService.addProductToCart(1L, 10));
+
+        assertEquals("Product " + product.getProductName() + " already exists in the cart", ex.getMessage());
+
+    }
+
+    @Test
+    void shouldThrowExceptionBecauseProductIsNotAvailable() {
+        Long productId = 1L;
+
+        CartDTO cartDTO = new CartDTO();
+        cartDTO.setCartId(1L);
+        cartDTO.setTotalPrice(0.0);
+
+        product.setQuantity(0);
+
+        when(authUtil.loggedInEmail()).thenReturn("user@email.com");
+
+        when(cartRepository.findCartByEmail("user@email.com"))
+                .thenReturn(cart);
+
+        when(productRepository.findById(productId))
+                .thenReturn(Optional.of(product));
+
+        when(cartItemRepository.findCartItemByProductIdAndCartId(cart.getCartId(), productId))
+                .thenReturn(null);
+
+        APIException ex = assertThrows(APIException.class,
+                () -> cartService.addProductToCart(1L, 10));
+
+        assertEquals(product.getProductName() + " is not available", ex.getMessage());
+    }
+
+    @Test
+    void shouldThrowExceptionBecauseWantedQuantityIsBiggerThanQuantityAvailable() {
+        Long productId = 1L;
+        Integer quantity = 11;
+        CartDTO cartDTO = new CartDTO();
+        cartDTO.setCartId(1L);
+        cartDTO.setTotalPrice(0.0);
+
+        when(authUtil.loggedInEmail()).thenReturn("user@email.com");
+
+        when(cartRepository.findCartByEmail("user@email.com"))
+                .thenReturn(cart);
+
+        when(productRepository.findById(productId))
+                .thenReturn(Optional.of(product));
+
+        when(cartItemRepository.findCartItemByProductIdAndCartId(cart.getCartId(), productId))
+                .thenReturn(null);
+
+        APIException ex = assertThrows(APIException.class,
+                () -> cartService.addProductToCart(productId, quantity));
+        assertEquals("Please, make an order of the " + product.getProductName()
+                + " less than or equal to the quantity " + product.getQuantity() + ".", ex.getMessage());
+    }
+
+    @Test
+    void shouldReturnAListWithAllCarts() {
+        // Garante que cart tem itens antes de usar
+        Product product = new Product();
+        CartItem cartItem = new CartItem();
+        cartItem.setProduct(product);
+        cartItem.setQuantity(2);
+        cart.setCartItems(List.of(cartItem));
+
+        List<Cart> cartList = new ArrayList<>();
+        cartList.add(cart);
+
+        when(cartRepository.findAll()).thenReturn(cartList);
+
+        when(modelMapper.map(any(Cart.class), eq(CartDTO.class)))
+                .thenReturn(cartDTO);
+
+        when(modelMapper.map(any(Product.class), eq(ProductDTO.class)))
+                .thenReturn(productDTO);
+
+        List<CartDTO> resposta = cartService.getAllCarts();
+
+        assertEquals(1, resposta.size());
+    }
+
+    @Test
+    void shouldThroExpetionBecauseListIsEmpty() {
+
+        List<Cart> cartList = new ArrayList<>();
+
+        List<CartDTO> cartDTOList = new ArrayList<>();
+        cartDTOList.add(cartDTO);
+
+        when(cartRepository.findAll())
+                .thenReturn(cartList);
+
+        APIException ex = assertThrows(APIException.class,
+                () -> cartService.getAllCarts());
+        assertEquals("No cart exists", ex.getMessage());
+    }
+
+    @Test
+    void shouldGetACart() {
+
     }
 
 
