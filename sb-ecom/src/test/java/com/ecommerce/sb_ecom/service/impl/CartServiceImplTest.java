@@ -55,6 +55,7 @@ class CartServiceImplTest {
     List<Product> productList = new ArrayList<>();
     List<CartItem> cartItemList = new ArrayList<>();
     ProductDTO productDTO;
+    List<ProductDTO> productDTOList;
     Cart cart;
     CartDTO cartDTO;
 
@@ -86,17 +87,24 @@ class CartServiceImplTest {
                 cartItemList
         );
 
-        cartItem = new CartItem(1L, cart, product, 10, 0.1, 10.00);
-
         productList.add(product);
 
+        // 1. Cria o cart primeiro
         cart = new Cart();
         cart.setCartId(1L);
         cart.setTotalPrice(0.0);
         cart.setUser(user);
         cart.setCartItems(new ArrayList<>());
 
+        // 2. Cria o cartItem com o cart já existente
+        cartItem = new CartItem(1L, cart, product, 2, 0.1, 10.00);
+        //                                          ↑ quantidade relevante para os asserts
+
+        // 3. Adiciona o cartItem ao cart
+        cart.getCartItems().add(cartItem);
+
         cartDTO = new CartDTO();
+        productDTOList = new ArrayList<>();
 
         productDTO = new ProductDTO();
         productDTO.setProductId(1L);
@@ -106,6 +114,8 @@ class CartServiceImplTest {
         productDTO.setPrice(10.0);
         productDTO.setSpecialPrice(9.0);
         productDTO.setDiscount(10.0);
+        productDTO.setQuantity(2); // ← adicione a quantidade também
+        productDTOList.add(productDTO);
     }
 
     @Test
@@ -155,7 +165,7 @@ class CartServiceImplTest {
         assertNotNull(result);
         assertEquals(1L, result.getCartId());
         assertEquals(18.0, cart.getTotalPrice());
-        assertEquals(1, result.getProducts().size());
+        assertEquals(2, result.getProducts().size());
         assertEquals("Ball", result.getProducts().get(0).getProductName());
         assertEquals(2, result.getProducts().get(0).getQuantity());
 
@@ -300,6 +310,139 @@ class CartServiceImplTest {
 
     @Test
     void shouldGetACart() {
+        String email = "user@email.com";
+        Long cartId = 1L;
+        cartDTO = new CartDTO();
+        cartDTO.setCartId(1L);
+        cartDTO.setTotalPrice(product.getPrice());
+        cartDTO.setProducts(new ArrayList<>(productDTOList));
+        when(cartRepository.findCartByEmailAndCartId(email, cartId)).thenReturn(cart);
+
+        when(modelMapper.map(any(Cart.class), eq(CartDTO.class)))
+                .thenReturn(cartDTO);
+
+        when(modelMapper.map(any(Product.class), eq(ProductDTO.class)))
+                .thenReturn(productDTO);
+
+        CartDTO result = cartService.getCart(email, cartId);
+
+        assertNotNull(result);
+        assertEquals(1L, result.getCartId());
+        assertEquals(10.0, result.getTotalPrice());
+        assertEquals("Ball", result.getProducts().getFirst().getProductName());
+        assertEquals(2, result.getProducts().get(0).getQuantity());
+
+    }
+
+    @Test
+    void shouldThrowExcepitionBecauseCarIsNull() {
+        String email = "user@email.com";
+        Long cartId = 10L;
+        cartDTO = new CartDTO();
+        cartDTO.setCartId(1L);
+        cartDTO.setTotalPrice(product.getPrice());
+        cartDTO.setProducts(new ArrayList<>(productDTOList));
+        when(cartRepository.findCartByEmailAndCartId(email, cartId)).thenReturn(null);
+
+        ResourceNotFoundException result = assertThrows( ResourceNotFoundException.class, () -> cartService.getCart(email, cartId));
+        assertEquals("Cart not found with cartId: 10", result.getMessage());
+    }
+
+    @Test
+    void shouldUpdateQuantityInCart() {
+        String email = "user@email.com";
+        Long cartId = cart.getCartId();
+        Long productId = product.getProductId();
+        Integer quantity = 1;
+
+        // Mock do usuário logado
+        when(authUtil.loggedInEmail()).thenReturn(email);
+
+        // Mocks do repositório
+        when(cartRepository.findCartByEmail(email)).thenReturn(cart);
+        when(cartRepository.findById(cartId)).thenReturn(Optional.of(cart));
+        when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+        when(cartItemRepository.findCartItemByProductIdAndCartId(cartId, productId))
+                .thenReturn(cartItem);
+
+        // Mock do save
+        when(cartItemRepository.save(any(CartItem.class))).thenReturn(cartItem);
+        when(cartRepository.save(any(Cart.class))).thenReturn(cart);
+
+        // Mock do mapeamento
+        when(modelMapper.map(any(Cart.class), eq(CartDTO.class))).thenReturn(cartDTO);
+        when(modelMapper.map(any(Product.class), eq(ProductDTO.class))).thenReturn(productDTO);
+
+        CartDTO result = cartService.updateProductQuantityInCart(productId, quantity);
+
+        // Verificações
+        assertNotNull(result);
+        assertNotNull(result.getProducts());
+
+        verify(cartRepository).findCartByEmail(email);
+        verify(cartRepository).findById(cartId);
+        verify(productRepository).findById(productId);
+        verify(cartItemRepository).findCartItemByProductIdAndCartId(cartId, productId);
+        verify(cartItemRepository).save(any(CartItem.class));
+        verify(cartRepository).save(any(Cart.class));
+    }
+
+    @Test
+    void shouldThrowExceptionWhenProductOutOfStock() {
+        product.setQuantity(0);
+
+        when(authUtil.loggedInEmail()).thenReturn("user@email.com");
+        when(cartRepository.findCartByEmail("user@email.com")).thenReturn(cart);
+        when(cartRepository.findById(cart.getCartId())).thenReturn(Optional.of(cart));
+        when(productRepository.findById(product.getProductId())).thenReturn(Optional.of(product));
+
+        assertThrows(APIException.class,
+                () -> cartService.updateProductQuantityInCart(product.getProductId(), 1));
+    }
+
+    @Test
+    void shouldThrowExceptionWhenQuantityExceedsStock() {
+        when(authUtil.loggedInEmail()).thenReturn("user@email.com");
+        when(cartRepository.findCartByEmail("user@email.com")).thenReturn(cart);
+        when(cartRepository.findById(cart.getCartId())).thenReturn(Optional.of(cart));
+        when(productRepository.findById(product.getProductId())).thenReturn(Optional.of(product));
+
+        // Tenta adicionar mais do que o estoque disponível
+        assertThrows(APIException.class,
+                () -> cartService.updateProductQuantityInCart(product.getProductId(), 999));
+    }
+
+    @Test
+    void shouldThrowExceptionWhenCartItemNotFound() {
+        when(authUtil.loggedInEmail()).thenReturn("user@email.com");
+        when(cartRepository.findCartByEmail("user@email.com")).thenReturn(cart);
+        when(cartRepository.findById(cart.getCartId())).thenReturn(Optional.of(cart));
+        when(productRepository.findById(product.getProductId())).thenReturn(Optional.of(product));
+        when(cartItemRepository.findCartItemByProductIdAndCartId(
+                cart.getCartId(), product.getProductId())).thenReturn(null);
+
+        assertThrows(APIException.class,
+                () -> cartService.updateProductQuantityInCart(product.getProductId(), 1));
+    }
+
+    @Test
+    void shouldThrowExceptionWhenResultingQuantityIsNegative() {
+        // cartItem com quantidade 1, tentando remover 5 → newQuantity = -4
+        cartItem.setQuantity(1);
+
+        when(authUtil.loggedInEmail()).thenReturn("user@email.com");
+        when(cartRepository.findCartByEmail("user@email.com")).thenReturn(cart);
+        when(cartRepository.findById(cart.getCartId())).thenReturn(Optional.of(cart));
+        when(productRepository.findById(product.getProductId())).thenReturn(Optional.of(product));
+        when(cartItemRepository.findCartItemByProductIdAndCartId(
+                cart.getCartId(), product.getProductId())).thenReturn(cartItem);
+
+        assertThrows(APIException.class,
+                () -> cartService.updateProductQuantityInCart(product.getProductId(), -5));
+    }
+
+    @Test
+    void shouldDeleteAProductFromCart() {
 
     }
 
