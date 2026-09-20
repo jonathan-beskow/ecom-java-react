@@ -20,6 +20,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.*;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -43,6 +44,8 @@ class ProductServiceImplTest {
     List<Product> productList = new ArrayList<>();
     List<CartItem> cartItemList = new ArrayList<>();
     ProductDTO productDTO;
+    String keyword = null;
+    String categoryString = null;
 
     @Mock
     private CategoryRepository categoryRepository;
@@ -189,6 +192,10 @@ class ProductServiceImplTest {
         Integer pageNumber = 0;
         Integer pageSize = 10;
         String sortBy = "productId";
+
+        // Caso essas variáveis não sejam globais na sua classe de teste, inicialize-as aqui
+
+
         Sort sortByASC = Sort.by(sortBy).ascending();
         Pageable pageDetails = PageRequest.of(pageNumber, pageSize, sortByASC);
 
@@ -198,20 +205,25 @@ class ProductServiceImplTest {
                 productList.size()
         );
 
-        when(productRepository.findAll(any(Pageable.class))).thenReturn(productsPage);
+        // CORREÇÃO 1: Atualizar o Mock para receber um Specification e um Pageable
+        when(productRepository.findAll(any(Specification.class), any(Pageable.class)))
+                .thenReturn(productsPage);
+
         when(modelMapper.map(any(Product.class), eq(ProductDTO.class))).thenReturn(productDTO);
 
         ProductResponse response =
-                productService.getAllProducts(pageNumber, pageSize, sortBy, "asc");
+                productService.getAllProducts(pageNumber, pageSize, sortBy, "asc", keyword, categoryString);
 
         assertNotNull(response);
-        assertEquals(1, response.getContent().size());
+        assertEquals(1, response.getContent().size()); // Assumindo que productList tem tamanho 1
         assertEquals(0, response.getPageNumber());
         assertEquals(10, response.getPageSize());
         assertEquals(1, response.getTotalElements());
         assertEquals(1, response.getTotalPages());
         assertTrue(response.isLastPage());
-        verify(productRepository).findAll(any(Pageable.class));
+
+        // CORREÇÃO 2: Atualizar o Verify para checar a chamada correta
+        verify(productRepository).findAll(any(Specification.class), any(Pageable.class));
     }
 
     @Test
@@ -231,16 +243,66 @@ class ProductServiceImplTest {
                 emptyList.size()
         );
 
-        when(productRepository.findAll(any(Pageable.class))).thenReturn(productsPage);
+        // CORREÇÃO: Adicionar any(Specification.class) no Mockito
+        when(productRepository.findAll(any(Specification.class), any(Pageable.class)))
+                .thenReturn(productsPage);
 
-        APIException ex = assertThrows(APIException.class, () -> productService.getAllProducts(pageNumber, pageSize, sortBy, "asc"));
+        APIException ex = assertThrows(APIException.class, () ->
+                productService.getAllProducts(pageNumber, pageSize, sortBy, "asc", keyword, categoryString));
 
         assertNotNull(ex);
         assertEquals("No products found!", ex.getMessage());
 
-        verify(productRepository).findAll(any(Pageable.class));
+        // CORREÇÃO: Adicionar any(Specification.class) na verificação
+        verify(productRepository).findAll(any(Specification.class), any(Pageable.class));
         verifyNoInteractions(modelMapper);
+    }
 
+    @Test
+    void shouldGetAllProductsPaginatedDesc() {
+        Integer pageNumber = 0;
+        Integer pageSize = 10;
+        String sortBy = "productId";
+
+        Sort sortByDESC = Sort.by(sortBy).descending();
+        Pageable pageDetails = PageRequest.of(pageNumber, pageSize, sortByDESC);
+
+        Page<Product> productsPage = new PageImpl<>(
+                productList,
+                pageDetails,
+                productList.size()
+        );
+
+        // CORREÇÃO 1: Adicionar any(Specification.class)
+        when(productRepository.findAll(any(Specification.class), any(Pageable.class)))
+                .thenReturn(productsPage);
+
+        when(modelMapper.map(any(Product.class), eq(ProductDTO.class))).thenReturn(productDTO);
+
+        ProductResponse response =
+                productService.getAllProducts(pageNumber, pageSize, sortBy, "desc", keyword, categoryString);
+
+        assertNotNull(response);
+        assertEquals(1, response.getContent().size());
+        assertEquals(0, response.getPageNumber());
+        assertEquals(10, response.getPageSize());
+        assertEquals(1, response.getTotalElements());
+        assertEquals(1, response.getTotalPages());
+        assertTrue(response.isLastPage());
+
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+
+        // CORREÇÃO 2: Adicionar any(Specification.class) antes do captor
+        verify(productRepository).findAll(any(Specification.class), pageableCaptor.capture());
+
+        Pageable capturedPageable = pageableCaptor.getValue();
+
+        assertEquals(pageNumber, capturedPageable.getPageNumber());
+        assertEquals(pageSize, capturedPageable.getPageSize());
+        assertNotNull(capturedPageable.getSort().getOrderFor(sortBy));
+        assertTrue(capturedPageable.getSort().getOrderFor(sortBy).isDescending());
+
+        verify(modelMapper).map(any(Product.class), eq(ProductDTO.class));
     }
 
     @Test
@@ -633,49 +695,8 @@ class ProductServiceImplTest {
         verify(productRepository, never()).save(any(Product.class));
         verify(modelMapper, never()).map(any(Product.class), eq(ProductDTO.class));
     }
-    
-    @Test
-    void shouldGetAllProductsPaginatedDesc() {
-        Integer pageNumber = 0;
-        Integer pageSize = 10;
-        String sortBy = "productId";
 
-        Sort sortByDESC = Sort.by(sortBy).descending();
-        Pageable pageDetails = PageRequest.of(pageNumber, pageSize, sortByDESC);
 
-        Page<Product> productsPage = new PageImpl<>(
-                productList,
-                pageDetails,
-                productList.size()
-        );
-
-        when(productRepository.findAll(any(Pageable.class))).thenReturn(productsPage);
-        when(modelMapper.map(any(Product.class), eq(ProductDTO.class))).thenReturn(productDTO);
-
-        ProductResponse response =
-                productService.getAllProducts(pageNumber, pageSize, sortBy, "desc");
-
-        assertNotNull(response);
-        assertEquals(1, response.getContent().size());
-        assertEquals(0, response.getPageNumber());
-        assertEquals(10, response.getPageSize());
-        assertEquals(1, response.getTotalElements());
-        assertEquals(1, response.getTotalPages());
-        assertTrue(response.isLastPage());
-
-        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
-
-        verify(productRepository).findAll(pageableCaptor.capture());
-
-        Pageable capturedPageable = pageableCaptor.getValue();
-
-        assertEquals(pageNumber, capturedPageable.getPageNumber());
-        assertEquals(pageSize, capturedPageable.getPageSize());
-        assertNotNull(capturedPageable.getSort().getOrderFor(sortBy));
-        assertTrue(capturedPageable.getSort().getOrderFor(sortBy).isDescending());
-
-        verify(modelMapper).map(any(Product.class), eq(ProductDTO.class));
-    }
 
     @Test
     void shouldReturnAResponseBecauseACorrectCategoryWasInformedWithDescPagination() {
@@ -773,6 +794,30 @@ class ProductServiceImplTest {
         assertTrue(capturedPageable.getSort().getOrderFor(sortBy).isDescending());
 
         verify(modelMapper).map(any(Product.class), eq(ProductDTO.class));
+    }
+
+    @Test
+    void shouldConstructImageUrlWhenBaseUrlDoesNotEndWithSlash() {
+        // 1. Arrange: Injeta o valor na variável privada "imageBaseUrl"
+        ReflectionTestUtils.setField(productService, "imageBaseUrl", "http://meusite.com/images");
+
+        // 2. Act: Invoca o método privado passando o argumento
+        String result = ReflectionTestUtils.invokeMethod(productService, "constructImageUrl", "foto.png");
+
+        // 3. Assert: Verifica se a barra "/" foi adicionada corretamente
+        assertEquals("http://meusite.com/images/foto.png", result);
+    }
+
+    @Test
+    void shouldConstructImageUrlWhenBaseUrlEndsWithSlash() {
+        // 1. Arrange: Base URL já possui a barra no final
+        ReflectionTestUtils.setField(productService, "imageBaseUrl", "http://meusite.com/images/");
+
+        // 2. Act: Invoca o método privado
+        String result = ReflectionTestUtils.invokeMethod(productService, "constructImageUrl", "foto.png");
+
+        // 3. Assert: Verifica se NÃO adicionou uma barra extra
+        assertEquals("http://meusite.com/images/foto.png", result);
     }
 
 

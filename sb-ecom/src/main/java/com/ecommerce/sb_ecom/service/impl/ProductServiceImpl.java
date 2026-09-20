@@ -21,6 +21,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -78,21 +79,22 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public ProductResponse getAllProducts(Integer pageNumber, Integer pageSize, String sortBy, String sortOrder) {
+    public ProductResponse getAllProducts(Integer pageNumber, Integer pageSize, String sortBy, String sortOrder, String keyword, String category) {
 
         Sort sortByAndOrder = sortOrder.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
 
         Pageable pageDetails = PageRequest.of(pageNumber, pageSize, sortByAndOrder);
-        Page<Product> pageProducts = productRepository.findAll(pageDetails);
+
+        Specification<Product> spec = getProductSpecification(keyword, category);
+
+        Page<Product> pageProducts = productRepository.findAll(spec, pageDetails);
 
         List<Product> products = pageProducts.getContent();
-        List<ProductDTO> productDTOS = products
-                .stream()
-                .map(product -> {
-                    ProductDTO productDTO = modelMapper.map(product, ProductDTO.class);
-                    productDTO.setImage(constructImageUrl(product.getImage()));
-                    return productDTO;
-                }).collect(Collectors.toList());
+        List<ProductDTO> productDTOS = products.stream().map(product -> {
+            ProductDTO productDTO = modelMapper.map(product, ProductDTO.class);
+            productDTO.setImage(constructImageUrl(product.getImage()));
+            return productDTO;
+        }).collect(Collectors.toList());
 
         if (products.isEmpty()) {
             throw new APIException("No products found!");
@@ -107,6 +109,21 @@ public class ProductServiceImpl implements ProductService {
         productResponse.setLastPage(pageProducts.isLast());
 
         return productResponse;
+    }
+
+    private static Specification<Product> getProductSpecification(String keyword, String category) {
+        Specification<Product> spec = (root, query, criteriaBuilder) -> criteriaBuilder.conjunction();
+
+        if (keyword != null && !keyword.isEmpty()) {
+            spec = spec.and((root, query, criteriaBuilder) -> criteriaBuilder.like(criteriaBuilder.lower(root.get("productName")), "%" + keyword.toLowerCase() + "%"));
+        }
+
+        if (category != null && !category.isEmpty()) {
+            spec = spec.and((root, query, criteriaBuilder) ->
+                    criteriaBuilder.like(
+                            (root.get("category").get("categoryName")), category));
+        }
+        return spec;
     }
 
     private String constructImageUrl(String imageName) {
@@ -145,14 +162,11 @@ public class ProductServiceImpl implements ProductService {
     @Override
     public ProductResponse searchProductByKeyword(String keyword, Integer pageNumber, Integer pageSize, String sortBy, String sortOrder) {
 
-        Sort sortByAndOrder = sortOrder.equalsIgnoreCase("asc")
-                ? Sort.by(sortBy).ascending()
-                : Sort.by(sortBy).descending();
+        Sort sortByAndOrder = sortOrder.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
 
         Pageable pageDetails = PageRequest.of(pageNumber, pageSize, sortByAndOrder);
 
-        Page<Product> pageProducts = productRepository
-                .findByProductNameLikeIgnoreCase('%' + keyword + '%', pageDetails);
+        Page<Product> pageProducts = productRepository.findByProductNameLikeIgnoreCase('%' + keyword + '%', pageDetails);
 
         List<Product> products = pageProducts.getContent();
 
@@ -160,9 +174,7 @@ public class ProductServiceImpl implements ProductService {
             throw new APIException("Products not found with keyword: " + keyword);
         }
 
-        List<ProductDTO> productDTOS = products.stream()
-                .map(product -> modelMapper.map(product, ProductDTO.class))
-                .collect(Collectors.toList());
+        List<ProductDTO> productDTOS = products.stream().map(product -> modelMapper.map(product, ProductDTO.class)).collect(Collectors.toList());
 
         ProductResponse productResponse = new ProductResponse();
         productResponse.setContent(productDTOS);
@@ -192,20 +204,14 @@ public class ProductServiceImpl implements ProductService {
         Product saved = productRepository.save(productFromDb);
 
         List<Cart> carts = cartRepository.findCartsByProductId(productId);
-        List<CartDTO> cartDTOS = carts.stream().map(
-                cart -> {
-                    CartDTO cartDTO = modelMapper.map(cart, CartDTO.class);
-                    List<ProductDTO> productDTOS = cart.getCartItems().stream()
-                            .map(p -> modelMapper.map(p.getProduct(), ProductDTO.class))
-                            .collect(Collectors.toList());
-                    cartDTO.setProducts(productDTOS);
-                    return cartDTO;
-                }
-        ).toList();
+        List<CartDTO> cartDTOS = carts.stream().map(cart -> {
+            CartDTO cartDTO = modelMapper.map(cart, CartDTO.class);
+            List<ProductDTO> productDTOS = cart.getCartItems().stream().map(p -> modelMapper.map(p.getProduct(), ProductDTO.class)).collect(Collectors.toList());
+            cartDTO.setProducts(productDTOS);
+            return cartDTO;
+        }).toList();
 
-        cartDTOS.forEach(
-                cart -> cartService.updateProductInCarts(cart.getCartId(), productId)
-        );
+        cartDTOS.forEach(cart -> cartService.updateProductInCarts(cart.getCartId(), productId));
 
         return modelMapper.map(saved, ProductDTO.class);
     }

@@ -24,8 +24,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class CartServiceImplTest {
@@ -443,6 +442,172 @@ class CartServiceImplTest {
 
     @Test
     void shouldDeleteAProductFromCart() {
+
+        when(cartRepository.findById(cart.getCartId())).thenReturn(Optional.of(cart));
+        when(cartItemRepository.findCartItemByProductIdAndCartId(cart.getCartId(), product.getProductId())).thenReturn(cartItem);
+        String response = cartService.deleteProductFromCart(cart.getCartId(), product.getProductId());
+        assertEquals("Product" + cartItem.getProduct().getProductName() + " removed from the cart", response);
+
+    }
+
+    @Test
+    void shouldThrowResourceNotFoundWhenTryToDeleteAProductFromCart() {
+        when(cartRepository.findById(cart.getCartId())).thenReturn(Optional.empty());
+        ResourceNotFoundException response = assertThrows( ResourceNotFoundException.class, () -> cartService.deleteProductFromCart(cart.getCartId(), product.getProductId()));
+        assertEquals("Cart not found with cartId: 1", response.getMessage());
+
+    }
+
+    @Test
+    void shouldThrowResourceNotFoundExceptionWhentryToDeleteAProductFromCartBecauseCartItemIsNull() {
+
+        when(cartRepository.findById(cart.getCartId())).thenReturn(Optional.of(cart));
+
+        when(cartItemRepository.findCartItemByProductIdAndCartId(cart.getCartId(), product.getProductId())).thenReturn(null);
+
+        ResourceNotFoundException response = assertThrows( ResourceNotFoundException.class, () -> cartService.deleteProductFromCart(cart.getCartId(), product.getProductId()));
+        assertEquals("Product  not found with productId: 1", response.getMessage());
+
+    }
+
+    @Test
+    void shouldThrowExceptionWhenTryToUpdateProductInCartBecauseCartIsNotFound() {
+        when(cartRepository.findById(1L)).thenReturn(Optional.empty());
+
+        ResourceNotFoundException response = assertThrows( ResourceNotFoundException.class, () -> cartService.updateProductInCarts(cart.getCartId(), product.getProductId()));
+        assertEquals("Cart not found with cartId: 1", response.getMessage());
+
+    }
+
+    @Test
+    void shouldThrowExceptionWhenTryToUpdateProductInCartBecauseProductIsNotFound() {
+        when(cartRepository.findById(1L)).thenReturn(Optional.of(cart));
+        when(productRepository.findById(1L)).thenReturn(Optional.empty());
+        ResourceNotFoundException response = assertThrows( ResourceNotFoundException.class, () -> cartService.updateProductInCarts(cart.getCartId(), product.getProductId()));
+        assertEquals("Product not found with productId: 1", response.getMessage());
+    }
+
+    @Test
+    void shouldThrowExceptionWhenTryToUpdateProductInCartBecauseCartItemIsNull() {
+        when(cartRepository.findById(1L)).thenReturn(Optional.of(cart));
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(cartItemRepository.findCartItemByProductIdAndCartId(cart.getCartId(), product.getProductId())).thenReturn(null);
+        APIException response = assertThrows( APIException.class, () -> cartService.updateProductInCarts(cart.getCartId(), product.getProductId()));
+        assertEquals("Product " + product.getProductName() + " not available", response.getMessage());
+    }
+
+    @Test
+    void shouldUpdateAProduct() {
+        // 1. Preparação (Arrange)
+        Cart cart = new Cart();
+        cart.setCartId(1L);
+        cart.setTotalPrice(100.0); // Preço total antes da atualização
+
+        Product product = new Product();
+        product.setProductId(1L);
+        product.setSpecialPrice(20.0); // Novo preço promocional do produto
+
+        CartItem cartItem = new CartItem();
+        cartItem.setProductPrice(30.0); // Preço antigo do item
+        cartItem.setQuantity(2); // Quantidade
+        cartItem.setCart(cart);
+        cartItem.setProduct(product);
+
+        when(cartRepository.findById(1L)).thenReturn(Optional.of(cart));
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+
+        // Mantendo exatamente a ordem dos parâmetros como está no seu serviço original
+        when(cartItemRepository.findCartItemByProductIdAndCartId(1L, 1L)).thenReturn(cartItem);
+        when(cartItemRepository.save(cartItem)).thenReturn(cartItem);
+
+        // 2. Execução (Act)
+        // Apenas chamamos o método, sem atribuir o retorno, pois ele é void
+        cartService.updateProductInCarts(1L, 1L);
+
+        // 3. Validação (Assert)
+        // Verifica se o preço do item foi atualizado para o preço especial do produto
+        assertEquals(20.0, cartItem.getProductPrice());
+
+        // Verifica se o preço do carrinho foi recalculado corretamente
+        // Calculo: Total Antigo (100) - Valor Antigo dos Itens (30 * 2) + Novo Valor dos Itens (20 * 2) = 80.0
+        assertEquals(80.0, cart.getTotalPrice());
+
+        // Verifica se o método save foi invocado exatamente 1 vez com o cartItem atualizado
+        verify(cartItemRepository, times(1)).save(cartItem);
+    }
+
+    @Test
+    void shouldRemoveProductFromCartWhenNewQuantityIsZero() {
+        // Arrange
+        String email = "user@email.com";
+        Long cartId = cart.getCartId();
+        Long productId = product.getProductId();
+
+        // O cartItem já existe com quantidade 2. Vamos adicionar -2 para zerar.
+        cartItem.setQuantity(2);
+        cartItem.setCartItemId(99L); // ID para validar o deleteById
+        Integer quantityToAdd = -2;
+
+        when(authUtil.loggedInEmail()).thenReturn(email);
+        when(cartRepository.findCartByEmail(email)).thenReturn(cart);
+        when(cartRepository.findById(cartId)).thenReturn(Optional.of(cart));
+        when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+        when(cartItemRepository.findCartItemByProductIdAndCartId(cartId, productId))
+                .thenReturn(cartItem);
+
+        // Simulamos o retorno do save para ter quantidade 0,
+        // ativando assim a condição if (updatedItem.getQuantity() == 0)
+        CartItem zeroQuantityItem = new CartItem();
+        zeroQuantityItem.setCartItemId(99L);
+        zeroQuantityItem.setQuantity(0);
+        zeroQuantityItem.setProduct(product);
+        when(cartItemRepository.save(any(CartItem.class))).thenReturn(zeroQuantityItem);
+
+        when(modelMapper.map(any(Cart.class), eq(CartDTO.class))).thenReturn(cartDTO);
+
+        // Se a lista de produtos no carrinho mapeada tiver algum, mockamos também o mapper do produto
+        when(modelMapper.map(any(Product.class), eq(ProductDTO.class))).thenReturn(productDTO);
+
+
+        CartDTO result = cartService.updateProductQuantityInCart(productId, quantityToAdd);
+
+
+        assertNotNull(result);
+
+        verify(cartItemRepository, times(1)).save(cartItem);
+
+        verify(cartItemRepository, times(1)).deleteById(99L);
+
+        assertNotEquals(product.getSpecialPrice(), cartItem.getProductPrice());
+    }
+
+    @Test
+    void shouldThrowResourceNotFoundBecauseCartIsNotFound() {
+        String email = "user@email.com";
+
+        when(authUtil.loggedInEmail()).thenReturn(email);
+        when(cartRepository.findCartByEmail(email)).thenReturn(cart);
+
+        when(cartRepository.findById(cart.getCartId())).thenReturn(Optional.empty());
+        ResourceNotFoundException response =
+                assertThrows( ResourceNotFoundException.class,
+                        () -> cartService.updateProductQuantityInCart(cart.getCartId(), 10));
+        assertEquals("Cart not found with cartId: 1", response.getMessage());
+    }
+
+    @Test
+    void shouldThrowResourceNotFoundBecauseProductIsNotFound() {
+        String email = "user@email.com";
+
+        when(authUtil.loggedInEmail()).thenReturn(email);
+        when(cartRepository.findCartByEmail(email)).thenReturn(cart);
+        when(cartRepository.findById(cart.getCartId())).thenReturn(Optional.of(cart));
+        when(productRepository.findById(product.getProductId())).thenReturn(Optional.empty());
+
+        ResourceNotFoundException response =
+                assertThrows( ResourceNotFoundException.class,
+                        () -> cartService.updateProductQuantityInCart(cart.getCartId(), 10));
+        assertEquals("Product not found with productId: 1", response.getMessage());
 
     }
 
