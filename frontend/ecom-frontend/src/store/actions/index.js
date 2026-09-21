@@ -36,7 +36,7 @@ export const fetchCategories = (queryString) => async (dispatch) => {
       totalPages: data.totalPages,
       lastPage: data.lastPage,
     });
-    dispatch({ type: "CATEGORY_SUCCESS" });
+    dispatch({ type: "IS_ERROR" });
   } catch (error) {
     console.log(error);
     dispatch({
