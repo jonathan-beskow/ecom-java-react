@@ -11,8 +11,7 @@ import { FiArrowDown, FiArrowUp, FiRefreshCw, FiSearch } from "react-icons/fi";
 import {
   useLocation,
   useNavigate,
-  useNavigation,
-  useSearchParams,
+  useSearchParams
 } from "react-router-dom";
 
 

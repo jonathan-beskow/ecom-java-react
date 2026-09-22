@@ -1,14 +1,12 @@
+import { useEffect } from "react";
 import { FaExclamationTriangle } from "react-icons/fa";
-import ProductCard from "./ProductCard";
 import { useDispatch, useSelector } from "react-redux";
-import { useEffect, useState } from "react";
-import { fetchCategories, fetchProducts } from "../store/actions";
+import { fetchCategories } from "../../store/actions";
+import Loader from "../Loader";
+import Paginations from "../Paginations";
+import ProductCard from "../ProductCard";
+import useProductFilter from "../useProductFilter";
 import Filter from "./Filter";
-import useProductFilter from "./useProductFilter";
-import { RotatingLines } from "react-loader-spinner";
-import Loader from "./Loader";
-import { Pagination } from "@mui/material";
-import Paginations from "./Paginations";
 
 const Products = () => {
   const { isLoading, errorMessage } = useSelector((state) => state.errors);
@@ -42,9 +40,9 @@ const Products = () => {
               products.map((item, i) => <ProductCard key={i} {...item} />)}
           </div>
           <div className="flex justify-center pt-10">
-            <Paginations 
-            numberOfPage={pagination?.totalPages}
-            totalProducts={pagination?.totalElements}
+            <Paginations
+              numberOfPage={pagination?.totalPages}
+              totalProducts={pagination?.totalElements}
             />
           </div>
         </div>
