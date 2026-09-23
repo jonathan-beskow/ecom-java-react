@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { FaShoppingCart } from "react-icons/fa";
+import { truncateText } from "../utils/truncateText";
 import ProductViewModal from "./ProductViewModal";
-import { truncateText } from "./truncateText";
 
 const ProductCard = ({
   productId,
@@ -85,7 +85,7 @@ const ProductCard = ({
           )}
           <button
             disabled={!isAvailable || btnLoader}
-            onClick={() => {}}
+            onClick={() => { }}
             className={`bg-blue-500 ${isAvailable ? "opacity-100 hover:bg-blue-600" : "opacity-70"}
             text-white py-2 px-3 rounded-lg items-center transition-colors duration-300 w-36 flex justify-center cursor-pointer`}
           >
