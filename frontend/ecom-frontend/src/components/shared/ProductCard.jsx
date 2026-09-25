@@ -12,6 +12,7 @@ const ProductCard = ({
   price,
   discount,
   specialPrice,
+  about = false,
 }) => {
   const [openProductViewModal, setOpenProductViewModal] = useState(false);
   const btnLoader = false;
