@@ -1,10 +1,10 @@
 import { useEffect } from "react";
+import { FaExclamationTriangle } from "react-icons/fa";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchProducts } from "../../store/actions";
+import Loader from "../shared/Loader";
+import ProductCard from "../shared/ProductCard";
 import HeroBanner from "./HeroBanner";
-import Loader from "../Loader";
-import {ProductCard} from "../shared/ProductCard"
-import { FaExclamationTriangle } from "react-icons/fa";
 
 const Home = () => {
 

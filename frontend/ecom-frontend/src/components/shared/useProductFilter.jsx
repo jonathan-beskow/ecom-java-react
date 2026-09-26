@@ -1,16 +1,16 @@
 import { useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { useSearchParams } from "react-router-dom";
-import { fetchProducts } from "../store/actions";
+import { fetchProducts } from "../../store/actions";
 
 const useProductFilter = () => {
 
     const [searchParams] = useSearchParams();
     const dispatch = useDispatch();
 
-    useEffect( () => {
+    useEffect(() => {
 
-        const params  = new URLSearchParams();
+        const params = new URLSearchParams();
 
         const currentPage = searchParams.get("page") ? Number(searchParams.get("page")) : 1;
 
