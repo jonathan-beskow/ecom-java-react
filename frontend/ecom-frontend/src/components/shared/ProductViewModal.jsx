@@ -31,7 +31,7 @@ function ProductViewModal({ open, setOpen, product, isAvailable }) {
           <div className="flex min-h-full items-center justify-center p-4">
             <DialogPanel
               transition
-              className="relative transform overflow-hidden rounded-lg bg-white shadow-xl transition-all md:max-w-[620px] md:min-w-[620px] w-full"
+              className="relative transform overflow-hidden rounded-lg bg-white shadow-xl transition-all md:max-w-155 md:min-w-155 w-full"
             >
               {image && (
                 <div className="flex justify-center aspect-3/2">
