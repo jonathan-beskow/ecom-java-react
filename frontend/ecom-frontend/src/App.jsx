@@ -7,6 +7,7 @@ import About from "./components/shared/About";
 import Contact from "./components/shared/Contact";
 import NavBar from "./components/shared/Navbar";
 import { Toaster } from "react-hot-toast";
+import Cart from "./components/cart/Cart";
 function App() {
   const [count, setCount] = useState(0);
 
@@ -19,6 +20,7 @@ function App() {
           <Route path="/products" element={<Products />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
+          <Route path="/cart" element={<Cart />} />
         </Routes>
         <Toaster position="bottom-center" />
       </BrowserRouter>
